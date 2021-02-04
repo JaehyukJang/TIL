@@ -59,15 +59,15 @@
 - 반복적으로 데이터에 접근하여 연산하는 머신러닝에 적합
 - **컴퓨터 클러스터에서 병렬 데이터 프로세싱을 하는 라이브러리의 집합이자 통합 컴퓨팅 엔진**
 
-    ![apache_spark](apache_spark.png)
+    ![apache_spark](./img/apache_spark.png)
 
 - 다양한 소스에서 다양한 형태의 데이터를 읽고 쓰며, 데이터 분석/머신러닝/그래프 분석/ 실시간 스트리밍 데이터 처리 등의 작업 지원
 
-    ![support_of_spark.png](./img/support_of_spark-submit.png)
+    ![support_of_spark.png](./img/support_of_spark.png)
 
 - 기본 아키텍처
 
-    ![architecture_of_spark](architecture_of_spark.png)
+    ![architecture_of_spark](./img/architecture_of_spark.png)
 
     1. spark-submit 통해서 Cluster Manage에 user code를 제출
 
