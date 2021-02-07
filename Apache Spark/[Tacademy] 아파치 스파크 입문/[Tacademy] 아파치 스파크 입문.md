@@ -1,6 +1,5 @@
 # [Tacademy] 아파치 스파크 입문
 
-- 목차
 - 참고 자료
 
     [아파치 스파크 입문 | T아카데미 온라인강의](https://tacademy.skplanet.com/live/player/onlineLectureDetail.action?seq=193)
@@ -91,3 +90,82 @@
         → storage에 있는 데이터를 읽기 때문에 disk I/O 발생하고 DB만큼의 성능이 나오진 않음
 
     - user가 늘어나면 **메모리 사용에 신경을 많이 써야함**
+
+# [2강] Spark의 실시간/배치
+
+## Big Data Processing
+
+- Batch Processing : 전일자/전월자 등 큰 데이터의 summary 테이블 생성
+    - 데이터가 크고 복잡하지만 latency를 가져도 됨
+    - ex) MapReduce
+- Stream Processing : 데이터가 온 즉시 바로 처리
+
+    ![stream_processing](./img/stream_processing.png)
+
+    - 데이터가 바로 처리되어야하기 때문에 연산이 단순하고 독립적이여야 함
+    - sub-second latency
+    - ex) Storm, Flink
+- Micro-Batching : 배치와 스트리밍이 결합된 형태
+
+    ![micro_batch_processing](./img/micro_batch_processing.png)
+
+## Spark Streaming
+
+- 실시간 처리가 아닌 small batch
+
+    ![spark_streaming](./img/spark_streaming.png)
+
+- Discretized Stream Processing : 작고 deterministic한 일련의 배치, Spark은 각 배치를 RDD로 취급하고, RDD Operation을 통해 처리
+- Checkpointing : 생성된 RDD들을 Checkpointing을 통해서 저장하고, 실시간으로 처리하다가 문제가 생기면 재연산
+    - time interval 단위가 너무 커지면 복구시간과 재연산 시간이 증가
+    - 비즈니스 요건마다 다르지만, 데이터의 누락이 없어야 한다면 ZooKeeper나 HBASE 통해서 offset 관리
+- Accumulator & Broadcast : RDD의 distributed(shared) variable
+    - Accumulator : 클러스터 전체에서 증분이 가능한 데이터 구조
+        - ex) 디버깅을 위한 error count → 드라이버에 메모리 이슈를 야기할 수 있기 때문에 운영 단계에서는 사용하지 않음
+    - Broadcast : 클러스터에서 read only로 가지고 있는 불변하는 기준 정보
+        - ex) large lookup table → long running process여서 JVM GC 문제 발생 가능하기 때문에 Spark Streaming에서는 주의
+- 아키텍처에서의 고려사항
+    - Scalability : scale-out 가능한 구조
+    - Distributed Processing : CPU와 메모리 자원의 확보
+    - Fault tolerant : 어플리케이션 정책에 따라 다름
+        - 실패된 작업보다는 현재 들어오고 있는 실시간 데이터의 처리가 중요
+        - 데이터 누락이 있으면 안되는 경우, ZooKeeper를 통한 실패 작업 관리
+    - Enterprise constrains: SLA(서비스 수준 협약) → job scheduling, reprocessing, cluster 등
+- 활용 케이스
+    - 실시간 모니터링
+    - 실시간 BI
+    - Operational Intelligence : 특정 조건에 트리거링 되었을 때 동작(알람 등)
+    - 제조라인
+- 성능 튜닝
+    - Spark Streaming은 계속 띄워놔야 하고, 드라이버가 죽으면 하둡이 재실행하지만 원인 분석이 필요하여 JVM 모니터링 → 메모리 이슈가 많음
+    - Batch and Window Sizes
+        - 0.5초가 적합
+        - 10초 정도로 배치 사이즈를 잡고 줄여나가는 것이 좋고, bottleneck이 있을 경우 늘림
+    - Level of Parallelism : 병렬성
+        - reveiver의 수 증가(kafka에서는 topic repartition)
+        - 받은 데이터의 repartitioning → 전체 데이터가 셔플링되기 때문에 주의
+        - 집계시 groupByKey가 아닌 reduceByKey를 사용
+    - GC and Memory Usage
+        - JVM 모니터링 필요
+- Batch와 Streaming 클러스터를 따로 구성하지는 않음
+    - YARN에서 queue를 분리하여 리소스를 isolation
+
+## Kafka
+
+- 분산되고, 파티션되고, 복제(HDFS와 같이 copy하여 저장)되는 커밋 로그 서비스 → 분산 메시징 서버
+
+    ![kafka](./img/kafka.png)
+
+- 하나의 데이터에 대해 여러 consumer group이 사용
+
+## Structured Streaming
+
+- DataFrame 기반으로 Structured Streaming 지원
+    - Spark SQL 엔진에서 High-level streaming API를 만든 것
+- Continuous Application
+
+    ![continuous_application](./img/continuous_application.png)
+
+- Watermark : 늦은 데이터를 처리하기 위해 기다려주는 threshold
+- Joining : static 데이터를 Join 할 수 있음
+- 다양한 output mode : append, complete 등
