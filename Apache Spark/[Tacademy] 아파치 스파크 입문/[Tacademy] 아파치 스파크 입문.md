@@ -169,3 +169,86 @@
 - Watermark : 늦은 데이터를 처리하기 위해 기다려주는 threshold
 - Joining : static 데이터를 Join 할 수 있음
 - 다양한 output mode : append, complete 등
+
+# [3강] Spark의 데이터 처리 실습 #1
+
+## RDDs
+
+- Resilient Distributed Datasets(탄력적인 분산 데이터셋)
+- **Spark의 모든 처리 요소들은 RDD 기반**
+
+    → 데이터를 가공하면 Action 전까지 계속 transformation하면서 새로운 RDD를 생성
+
+    (모든 RDD를 메모리에 올리는 것은 아니고, 자바 객체로 temp 디렉토리에 쓰임)
+
+- **Fault tolerance**
+    - 특정 iteration에서 에러나 문제가 매우 빈번하게 발생(특정 노드에 리소스가 없거나, 디스크나 네트워크 카드나 OS에 crash가 발생)
+    - MapReduce에서는 매번 디스크에 읽고 쓰고를 반복하기 때문에 해당 디스크에서 중간 산출물을 읽고 재연산
+    - RDD는 **lineage tracking**을 통해 재연산을 수행
+        - 각 transformation 단계에서 바로 앞 단계로 돌아가서 재연산
+
+## Language
+
+- RDD 프로그래밍에서는 Python과 Scala가 성능차이가 났지만, DataFrame과 같은 **Structrued API를 사용하면 큰 차이 없음**
+    - DataFrame은 스키마를 가지고 있기 때문에 직관적인 처리가 가능
+- Scala
+    - functional programming을 지원
+    - Java bytecode로 컴파일되고, 코드를 실행하면 Java virtual machine(JVM) 위에서 실행
+
+## Operations
+
+- **Transformation**
+    - 새로운 RDD를 생성
+    - Lazy operaions
+
+        → Dag은 특정 Job이 돌기 위해서 실행되는 프로세스인데, 최적의 Dag을 Action 시점에서 찾기 위해서 Lazy operations
+
+        → 즉, 실행계획이 Action 단계에서 최적화
+
+- **Actions**
+    - 결과를 반환하거나 스토리지에 저장하는 작업 수행
+
+    ![operations](./img/operations.png)
+
+## DAG(Directed Acyclic Graphs)
+
+- Dependencies(Lineage)를 추적
+    - Nodes는 RDDs
+    - Arrows는 Transformation
+
+    ![dag](./img/dag.png)
+
+- DAG은 Stage로 나뉘고, Stage는 Task로 구성
+    - Stage 구성은 operation 종류에 따라 다름
+
+        → 하기 케이스에서 Stage 1은 map 단계이기 때문에 shuffling 없이 같은 Stage
+
+    - Task는 executor의 operation시  core 개수와 관계가 있음
+
+    ![dag_of_job](./img/dag_of_job.png)
+
+- Transformation은 map과 같은 Narrow와 shuffling이 발생하는 Wide로 나뉨
+- Action은 workflow의 마지막 단계로 DAG을 최적화하여 실행을 trigger
+
+## RDD Persistency & Removal
+
+- worker의 일부 memory 영역을 cache 영역으로 활용
+
+    → 한번 데이터를 읽고 여러번 가공할 경우 cache를 쓰는 것이 좋지만, executor의 메모리를 점유하는 것 고려 필요
+
+- RDD → persist & unpersist
+- DataFrame → cache & uncache
+
+## Shared Variables
+
+- **Broadcast Variables**
+    - read-only variable을 각 Executor로 로드하여 가지고 있음
+
+        → Spark Streaming 같은 long running process에서는 memery 이슈 주의
+
+- **Accumulators**
+    - event를 받아서 driver에 그 값을 가지고 있음
+
+        → dubugging 용도로 사용 가능
+
+    ![shared_variables](./img/shared_variables.png)
